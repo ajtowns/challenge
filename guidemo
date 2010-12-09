@@ -2,9 +2,9 @@
 
 import wx, guif
 
-frame = guif.dispguif("Enter some text: %(edit)250e \n %(button)b", 
+frame = guif.dispguif("Enter some text: %(edit)250t \n %(button)b", 
                       "", "Press me!",
                       ExitOn = ("button", wx.EVT_BUTTON))
 
-guif.dispguif("You typed: %t", frame.edit.GetValue())
+guif.dispguif("You typed: %l", frame.edit.GetValue())
 

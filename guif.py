@@ -2,7 +2,7 @@
 
 import wx, re
 
-re_fmt = re.compile("\s*%([(]([a-z]+)[)])?([-=+])?(\d+)?(,(\d+))?([ebt])")
+re_fmt = re.compile("\s*%([(]([a-z]+)[)])?([-=+])?(\d+)?(,(\d+))?([ltb])")
 re_txt = re.compile("\s*(([^%\t]|%%)+)")
 
 def parsefmt(layout):
@@ -45,12 +45,12 @@ def horizlayout(parent, layout, *args, **kwargs):
             height = -1
         sz = wx.Size(int(width), int(height))
 
-        if widget == "e":
+        if widget == "l":
+            el = wx.StaticText(parent, label=args.pop(0))
+        elif widget == "t":
             el = wx.TextCtrl(parent, size=sz, value=args.pop(0))
         elif widget == "b":
             el = wx.Button(parent, label=args.pop(0))
-        elif widget == "t":
-            el = wx.StaticText(parent, label=args.pop(0))
         elif widget == ":":
             el = wx.StaticText(parent, label=name)
             name = None
