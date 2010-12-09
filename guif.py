@@ -106,6 +106,7 @@ def dispguif(layout, *args, **kwargs):
 
     frame = GUIf(layout, *args, **kwargs)
 
+    frame.Bind(wx.EVT_CLOSE, lambda e: True)
     if exiton is not None:
         el, evt = exiton
         if el is None:
@@ -119,6 +120,6 @@ def dispguif(layout, *args, **kwargs):
 
     if exiton is not None:
         implicit_app.MainLoop()
-        frame.Close()
+        frame.Hide()
 
     return frame
