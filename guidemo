@@ -1,0 +1,37 @@
+#!/usr/bin/env python
+
+import wx, guif
+
+# handles the mainloop and such
+class wxHelloApp(wx.App):
+    """The wx.App for the wxHello application"""
+    def OnInit(self):
+        """Override OnInit to create our Frame"""
+        f, n = guif.guif("%t %(edit)250e \n %(button)b", 
+                         "Enter some text", "", "Press me!");
+        self.frame = f
+        self.names = n
+
+        self.names["button"].Bind(wx.EVT_BUTTON, self.button_action)
+
+        self.frame.Show()
+        self.SetTopWindow(self.frame)
+
+        return True
+
+    def button_action(self, event):
+        """Called when the button is clicked.  It will
+        show a simple dialog with the text from the
+        edit field."""
+        #Get the message text
+        message_text = "You typed: %s" % (self.names["edit"].GetValue())
+        msg_box = wx.MessageDialog(self.frame
+            , message_text
+            , "Hello!"
+            , wx.OK | wx.CENTRE | wx.ICON_EXCLAMATION)
+        #Show the Dialog
+        msg_box.ShowModal()
+
+if __name__ == "__main__":
+    app = wxHelloApp()
+    app.MainLoop()
