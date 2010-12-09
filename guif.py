@@ -63,24 +63,62 @@ def horizlayout(parent, layout, *args, **kwargs):
 
     return res, args
 
-def guif(layout, *args):
-    frame = wx.Frame(None)
-    names = {}
+class GUIf(wx.Frame):
+    def __init__(self, layout, *args):
+        wx.Frame.__init__(self, None)
+        self.names = {}
+        self.layout = layout
+        self.args = args
 
-    """Called when the controls on Window are to be created"""
-    hlayouts = layout.split("\n")
+        hlayouts = self.layout.split("\n")
+        args = self.args
  
-    if len(hlayouts) > 1:
-        v_sizer = wx.BoxSizer(wx.VERTICAL)
-        for l in hlayouts:
-            h, args = horizlayout(frame, l, *args, names=names)
-            v_sizer.Add(h, 0, wx.EXPAND)
-        frame.SetSizer(v_sizer)
-        v_sizer.Fit(frame)
-        frame.SetMinSize(v_sizer.GetMinSize())
-    else:
-        h, args = horizlayout(frame, hlayouts[0], *args, names=names)
-        frame.SetSizer(h)
+        if len(hlayouts) > 1:
+            v_sizer = wx.BoxSizer(wx.VERTICAL)
+            for l in hlayouts:
+                h, args = horizlayout(self, l, *args, names=self.names)
+                v_sizer.Add(h, 0, wx.EXPAND)
+            self.SetSizer(v_sizer)
+            v_sizer.Fit(self)
+            self.SetMinSize(v_sizer.GetMinSize())
+        else:
+            h, args = horizlayout(self, hlayouts[0], *args, names=self.names)
+            self.SetSizer(h)
+            h.Fit(self)
+            self.SetMinSize(h.GetMinSize())
 
-    return frame, names
+        for name in self.names:
+            if hasattr(self, name):
+                raise Exception("Invalid widget name %s" % name)
+            setattr(self, name, self.names[name])
 
+implicit_app = None
+
+def dispguif(layout, *args, **kwargs):
+    global implicit_app
+
+    exiton = (None, wx.EVT_CLOSE)
+    if "ExitOn" in kwargs:
+        exiton = kwargs.pop("ExitOn")
+
+    if implicit_app is None:
+        implicit_app = wx.App()
+
+    frame = GUIf(layout, *args, **kwargs)
+
+    if exiton is not None:
+        el, evt = exiton
+        if el is None:
+            el = frame
+        else:
+            el = frame.names[el]
+        el.Bind(evt, lambda e: implicit_app.ExitMainLoop())
+
+    frame.Show()
+    implicit_app.SetTopWindow(frame)
+
+    if exiton is not None:
+        implicit_app.MainLoop()
+        frame.Close()
+
+    return frame
