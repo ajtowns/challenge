@@ -3,6 +3,7 @@
 import wx, re
 
 re_fmt = re.compile("\s*%([(]([a-z]+)[)])?([-=+])?(\d+)?(,(\d+))?([ebt])")
+re_txt = re.compile("\s*(([^%\t]|%%)+)")
 
 def parsefmt(layout):
     layout = layout.rstrip(" ")
@@ -10,13 +11,19 @@ def parsefmt(layout):
     res = []
     while idx < len(layout):
         m = re_fmt.match(layout, idx)
-        if m is None:
-            raise Exception("Format error: %s\n" % (layout[idx:]))
-        name = m.group(2)
-        offset = m.group(3)
-        width = m.group(4)
-        height = m.group(6)
-        widget = m.group(7)
+        if m is not None:
+            name = m.group(2)
+            offset = m.group(3)
+            width = m.group(4)
+            height = m.group(6)
+            widget = m.group(7)
+        else:
+            m = re_txt.match(layout, idx)
+            if m is None:
+                raise Exception("Format error: %s\n" % (layout[idx:]))
+            widget = ":"
+            name = m.group(1)
+            offset = width = height = None
         res.append( (widget, name, offset, width, height) )
         idx = m.end()
     return res
@@ -31,7 +38,6 @@ def horizlayout(parent, layout, *args, **kwargs):
     names = kwargs.get("names", {})
 
     for widget, name, offset, width, height in fmt:
-        arg = args.pop(0)
 
         if width is None:
             width = -1
@@ -40,11 +46,14 @@ def horizlayout(parent, layout, *args, **kwargs):
         sz = wx.Size(int(width), int(height))
 
         if widget == "e":
-            el = wx.TextCtrl(parent, size=sz, value=arg)
+            el = wx.TextCtrl(parent, size=sz, value=args.pop(0))
         elif widget == "b":
-            el = wx.Button(parent, label=arg)
+            el = wx.Button(parent, label=args.pop(0))
         elif widget == "t":
-            el = wx.StaticText(parent, label=arg)
+            el = wx.StaticText(parent, label=args.pop(0))
+        elif widget == ":":
+            el = wx.StaticText(parent, label=name)
+            name = None
         else:
             raise Exception("Unhandled widget type")
 
@@ -87,6 +96,9 @@ class GUIf(wx.Frame):
             h.Fit(self)
             self.SetMinSize(h.GetMinSize())
 
+        if len(args) > 0:
+            raise Exception("Leftover arguments (%d)" % len(args))
+    
         for name in self.names:
             if hasattr(self, name):
                 raise Exception("Invalid widget name %s" % name)
