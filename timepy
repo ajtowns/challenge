@@ -1,0 +1,133 @@
+#!/usr/bin/env python
+
+import random, time, os, sys, subprocess
+import pynotify
+
+pynotify.init("TimePy")
+
+class Ping(object):
+    def __init__(self, gap = 45*60, seed = 666, base = 1184083200):
+        self.gap = gap
+        self.seed = seed
+        self.base = base
+
+    def _iterator(self):
+        R = random.Random(self.seed)
+        l = 1.0/self.gap
+        p = self.base
+        while True:
+            p += R.expovariate(l)
+            yield int(p)
+
+    def nextpings(self, t):
+        i = self._iterator()
+        n = 0
+        while n < t:
+            n = i.next()
+        while True:
+            yield n
+            n = i.next()
+
+    def nextping(self, t):
+        return self.nextpings(t).next()
+
+def cmd_res(*cmd, **kwargs):
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, **kwargs)
+    out = p.communicate()[0]
+    return p.returncode, out
+
+def idletime():
+    r, out = cmd_res("xprintidle")
+    return int(out)
+
+def checkidle():
+    x = idletime()
+    if x > 3000:
+        return
+
+    n = pynotify.Notification("TimePy", "Time to note what you're doing")
+    n.set_timeout(5000)
+    n.show()
+    while idletime() < 1500 + x:
+        time.sleep(.3)
+
+def query(ping, tag = "", carry = ""):
+    hint = "".join("\t" + x 
+                   for x in open("/home/aj/.timepie.hint").readlines())
+    ping_str = time.strftime("%H:%M:%S", time.localtime(ping))
+    if tag != "":
+        ping_str += " (%s)" % (tag.strip())
+    r, out = cmd_res("zenity", "--title", "Timepie", "--entry", "--text",
+                     "Hints:\n%s\n%s: What're you up to?" % (hint, ping_str),
+                     "--entry-text", carry)
+    return out.strip()
+
+def do_pings(lastping):
+    now = time.time()
+    ping = Ping()
+    log = open("%s/.timepie.log" % os.getenv("HOME"), "a")
+    checked_idle = False
+    answer = ""
+    for p in ping.nextpings(lastping+1):
+        if p > now:
+            break
+        if not checked_idle:
+            checkidle()
+            checked_idle = True
+        if p < now - 20:
+            tag = "OFF "
+        else:
+            tag = ""
+        answer = query(p, tag, answer)
+        what = tag + answer
+        after = time.time()
+        if after > now + 120:
+            what = "AFK " + what
+        now = after
+        log.write("%d %s (%d @%d\n" % (p, what, os.getpid(), time.time()))
+    log.close()
+    return p
+
+def tail(f, n=1):
+    f.seek(0, 2)    # move to end
+    p = f.tell()    # bytes in f
+    txt = []
+    while len(txt) < n and p > 0:
+        d = min(p, 1024)
+        f.seek(-d, 1)
+        p -= d
+        blk = f.read(d)
+        ex = blk[blk.rfind("\n")+1:]
+        if ex != "":
+            if txt == []:
+                txt = [ex]
+            else:
+                txt[0] = ex + txt[0]
+        txt = [a + "\n" for a in blk.split("\n")[:-1]] + txt
+    return txt[-n:]
+
+def get_lastping():
+    lns = tail(open("%s/.timepie.log" % os.getenv("HOME"), "r"), 1)
+    if len(lns) == 0:
+        return time.time()
+    return int(lns[0].split(" ")[0])
+
+lastping = get_lastping()
+os.unsetenv("WINDOWID")
+
+if sys.argv[1:] == ["test"]:
+    what = query(time.time())
+    print what
+    print "%d seconds since last ping" % (time.time() - lastping)
+elif sys.argv[1:] == ["daemon"]:
+    while True:
+        nextping = do_pings(lastping)
+        lastping = nextping - 1
+        secs = nextping - time.time()
+        print "%d seconds until next ping" % (secs)
+        secs = max(1, min(30,secs))
+        time.sleep(secs)
+else:
+    nextping = do_pings(lastping)
+    print "%d seconds until next ping" % (nextping - time.time())
+
